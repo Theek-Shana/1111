@@ -22,6 +22,10 @@ h2{font:italic 300 clamp(2.2rem,8vw,4rem)/1.1 var(--serif);margin-bottom:.4em}
 .rule{height:1px;background:var(--line);max-width:62rem;margin:0 auto}
 #fx{position:fixed;inset:0;width:100%;height:100%;pointer-events:none;z-index:30}
 
+/* hidden music player */
+#ytWrap{position:fixed;left:-400px;top:0;width:200px;height:200px;opacity:0;pointer-events:none;overflow:hidden}
+#ytWrap iframe{width:200px;height:200px;border:0}
+
 /* hero */
 .hero{position:relative;isolation:isolate;overflow:hidden;min-height:100svh;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;gap:1.6rem;max-width:none}
 .date{color:var(--mut);letter-spacing:.04em}
@@ -101,6 +105,15 @@ footer{text-align:center;color:var(--mut);padding:2rem 1rem calc(3rem + env(safe
 </head>
 <body>
 <canvas id="fx" aria-hidden="true"></canvas>
+
+<!-- hidden YouTube music player (starts when the wish button is clicked) -->
+<div id="ytWrap" aria-hidden="true">
+  <iframe id="yt"
+    src="https://www.youtube.com/embed/Td8BL6iuzps?enablejsapi=1&start=45&controls=0&playsinline=1&rel=0"
+    title="Music"
+    allow="autoplay; encrypted-media"
+    tabindex="-1"></iframe>
+</div>
 
 <header class="hero">
   <p class="date">11 · 11 · 2026 &nbsp;—&nbsp; together since 26 · 02 · 2022</p>
@@ -241,6 +254,29 @@ const reduce = matchMedia("(prefers-reduced-motion: reduce)").matches;
 document.querySelectorAll("[data-her]").forEach(e => e.textContent = CONFIG.herName);
 $("#foot").textContent = CONFIG.from;
 
+/* ---------- music (YouTube, starts at 0:45 on wish click) ---------- */
+const MUSIC_START = 45;            // seconds (0:45)
+const ytFrame = $("#yt");
+let ytLoaded = false, musicWanted = false, musicStarted = false;
+function ytSend(func, args){
+  try { ytFrame.contentWindow.postMessage(JSON.stringify({event: "command", func, args: args || []}), "*"); } catch(_) {}
+}
+function startMusic(){
+  if (musicStarted) return;
+  musicStarted = true;
+  ytSend("seekTo", [MUSIC_START, true]);
+  ytSend("playVideo");
+}
+ytFrame.addEventListener("load", () => {
+  ytLoaded = true;
+  ytSend("addEventListener", ["onReady"]);
+  if (musicWanted){ musicStarted = false; startMusic(); }
+});
+function playMusic(){
+  musicWanted = true;
+  if (ytLoaded) startMusic();
+}
+
 /* ---------- particles ---------- */
 const cv = $("#fx"), cx = cv.getContext("2d");
 let W, H, P = [];
@@ -272,6 +308,7 @@ const center = el => { const r = el.getBoundingClientRect(); return [r.left + r.
 /* ---------- wish ---------- */
 let wished = false;
 $("#wish").onclick = e => {
+  playMusic();
   burst(...center(e.currentTarget), 46);
   $("#wishMsg").textContent = wished ? "It is already coming true." : "Wish made. Keep it between us.";
   wished = true;
